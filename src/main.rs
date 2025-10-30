@@ -10,13 +10,13 @@ mod certificate;
 #[command(name = "https-wrapper")]
 #[command(about = "Minimalistic HTTPS wrapper to provide TLS layer to your HTTP server", long_about = None)]
 struct Args {
-    /// Input port (HTTPS server listens on this port)
-    #[arg(value_name = "INPUT_PORT")]
-    input_port: u16,
+    /// Input address (HTTPS server listens on this address, format: ip:port)
+    #[arg(value_name = "INPUT_ADDRESS")]
+    input_address: String,
 
-    /// Output port (HTTP server to forward requests to)
-    #[arg(value_name = "OUTPUT_PORT")]
-    output_port: u16,
+    /// Output address (HTTP server to forward requests to, format: ip:port)
+    #[arg(value_name = "OUTPUT_ADDRESS")]
+    output_address: String,
 
     /// Path to certificate file (.pfx or .chain)
     #[arg(value_name = "CERTIFICATE")]
@@ -43,14 +43,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .with_no_client_auth()
         .with_single_cert(certs, private_key)?;
 
-    let addr = format!("127.0.0.1:{}", args.input_port).parse::<SocketAddr>()?;
+    let addr = args.input_address.parse::<SocketAddr>()?;
     let listener = TcpListener::bind(addr).await?;
     let tls_acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
 
     println!("HTTPS reverse proxy running on https://{}", addr);
-    println!("Proxying to HTTP server at http://127.0.0.1:{}", args.output_port);
+    println!("Proxying to HTTP server at http://{}", args.output_address);
 
-    let output_port = args.output_port;
+    let output_address = args.output_address.clone();
     loop {
         let (client_stream, _) = listener.accept().await?;
         let tls_acceptor = tls_acceptor.clone();
@@ -66,15 +66,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             };
 
             // Connect to backend HTTP server
-            let mut backend_stream = match TcpStream::connect(
-                format!("127.0.0.1:{}", output_port)
-            ).await {
+            let mut backend_stream = match TcpStream::connect(&output_address).await {
                 Ok(s) => s,
                 Err(e) => {
                     eprintln!("Backend connection error: {}", e);
                     return;
                 }
             };
+
+            println!("Forwarding request to http://{}", output_address);
 
             // Bidirectional TCP forwarding (TLS <-> HTTP)
             if let Err(e) = tokio::io::copy_bidirectional(
