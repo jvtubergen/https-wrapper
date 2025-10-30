@@ -2,6 +2,13 @@
 name = "https-wrapper"
 version = "0.2.0"
 edition = "2021"
+description = "Minimalistic HTTPS reverse proxy that adds TLS encryption to any HTTP server"
+license = "MIT"
+repository = "https://github.com/jvtubergen/https-wrapper"
+homepage = "https://github.com/jvtubergen/https-wrapper"
+documentation = "https://github.com/jvtubergen/https-wrapper"
+keywords = ["https", "tls", "proxy", "reverse-proxy", "ssl"]
+categories = ["network-programming", "web-programming"]
 
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }
