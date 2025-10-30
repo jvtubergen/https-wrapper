@@ -94,6 +94,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     loop {
         let (client_stream, _) = listener.accept().await?;
         let tls_acceptor = tls_acceptor.clone();
+        let output_address = output_address.clone();
 
         tokio::spawn(async move {
             // TLS handshake
