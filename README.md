@@ -4,6 +4,8 @@ _Minimalistic HTTPS reverse proxy that adds TLS encryption to any HTTP server._
 
 Minimalistic HTTPS reverse proxy written in Rust. Wraps any HTTP server with TLS encryption using PFX/PKCS12 or PEM certificates. Perfect for adding HTTPS to local development servers or production applications that don't natively support TLS.
 
+In comparison to HTTP proxies, this tool uses bidirectional binary data streaming with minimal overhead. By forwarding raw TCP bytes without parsing or rewriting HTTP requests, it achieves better performance while supporting a broader range of protocols including HTTP/1.1, HTTP/2, WebSockets, and Server-Sent Events transparently.
+
 This code constructs a reverse proxy to provide TLS connections and forward any requests to another port (where you have your HTTP server listening at). And the CLI tool is used by providing the following information:
 - What address (ip:port) this (HTTPS reverse proxy) server should listen to.
 - What address (ip:port) this server should forward the request information to.
@@ -87,6 +89,18 @@ You'll be prompted to set an export password, which you'll then use when running
 ```bash
 https-wrapper 0.0.0.0:443 127.0.0.1:8080 cert.pfx yourpassword
 ```
+
+## Architecture
+
+![Architecture Diagram](documentation/diagram.svg)
+
+The proxy operates in five key steps:
+
+1. Accept incoming HTTPS connections on a specified port
+2. Perform TLS handshake and decrypt traffic
+3. Forward raw TCP bytes to a backend HTTP server
+4. Encrypt responses and send them back to clients
+5. Support any HTTP protocol version (HTTP/1.1, HTTP/2, WebSockets, etc.)
 
 ## Acknowledgements
 
