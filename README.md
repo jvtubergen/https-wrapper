@@ -1,15 +1,15 @@
 # https-wrapper
 
-_Minimalistic CLI tool to provide an HTTPS layer to your HTTP server._
+_Minimalistic HTTPS reverse proxy that adds TLS encryption to any HTTP server._
 
-This code constructs a reverse proxy to provide TLS connections and forward any requests to another port (where you have your HTTP server listening at).
+Minimalistic HTTPS reverse proxy written in Rust. Wraps any HTTP server with TLS encryption using PFX/PKCS12 or PEM certificates. Perfect for adding HTTPS to local development servers or production applications that don't natively support TLS.
 
-Provide the following:
+This code constructs a reverse proxy to provide TLS connections and forward any requests to another port (where you have your HTTP server listening at). And the CLI tool is used by providing the following information:
 - What address (ip:port) this (HTTPS reverse proxy) server should listen to.
 - What address (ip:port) this server should forward the request information to.
 - The TLS certificate (supports both PFX/PKCS12 and PEM formats).
 
-[https server (ip:port + certificate)] -> [http server (ip:port)]
+<!-- [https server (ip:port + certificate)] -> [http server (ip:port)] -->
 
 ## Quick Start
 
@@ -32,6 +32,9 @@ cargo build --release
 ```
 
 The binary will be at `target/release/https-wrapper`. You can copy it somewhere in your PATH if you want to use it from anywhere.
+
+As well is this package available at [crates.io](https://crates.io/crates/https-wrapper).
+)
 
 ## Usage
 
@@ -84,3 +87,7 @@ You'll be prompted to set an export password, which you'll then use when running
 ```bash
 https-wrapper 0.0.0.0:443 127.0.0.1:8080 cert.pfx yourpassword
 ```
+
+## Acknowledgements
+
+Certificate handling implementation was inspired by [forge](https://github.com/nhudson/forge).
