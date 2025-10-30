@@ -10,3 +10,6 @@ Provide the following:
 - The TLS certificate with its password. (Supports both `.pfx` and `.chain` + `.key`).
 
 [https server (port + certificate)] -> [http server (port)] 
+
+Usage:
+`https-wrapper <input-port> <output-port> <certificate> <password>`
