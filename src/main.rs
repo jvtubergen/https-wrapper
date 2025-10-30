@@ -1,10 +1,10 @@
 use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::rustls::ServerConfig;
-use rustls_pki_types::{CertificateDer, PrivateKeyDer};
-use std::fs;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use clap::Parser;
+
+mod certificate;
 
 #[derive(Parser, Debug)]
 #[command(name = "https-wrapper")]
@@ -32,35 +32,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Parse CLI arguments
     let args = Args::parse();
 
-    // Load PFX file and parse it
-    let pfx_data = fs::read(&args.certificate)?;
-    let pfx = p12::PFX::parse(&pfx_data)?;
-
-    // Extract certificates and private key from PFX
-    let password = args.password.as_deref().unwrap_or("");
-    let bags = pfx.bags(password)?;
-
-    let mut certs: Vec<CertificateDer<'static>> = Vec::new();
-    let mut private_key: Option<PrivateKeyDer<'static>> = None;
-
-    for bag in bags {
-        match &bag.bag {
-            p12::SafeBagKind::CertBag(cert_bag) => {
-                if let p12::CertBag::X509(cert_data) = cert_bag {
-                    certs.push(CertificateDer::from(cert_data.clone()));
-                }
-            }
-            p12::SafeBagKind::Pkcs8ShroudedKeyBag(_) => {
-                // Decrypt the key using the password
-                if let Some(key_bytes) = bag.bag.get_key(password.as_bytes()) {
-                    private_key = Some(PrivateKeyDer::Pkcs8(key_bytes.into()));
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let private_key = private_key.ok_or("No private key found in PFX file")?;
+    // Load certificate and private key using the certificate module
+    let (certs, private_key) = certificate::load_certificate(
+        &args.certificate,
+        args.password.as_deref(),
+    )?;
 
     // Configure TLS
     let config = ServerConfig::builder()
