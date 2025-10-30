@@ -18,12 +18,29 @@ struct Args {
     #[arg(value_name = "OUTPUT_ADDRESS")]
     output_address: String,
 
-    /// Path to certificate file (.pfx or .chain)
-    #[arg(value_name = "CERTIFICATE")]
-    certificate: String,
+    /// Path to certificate file (positional argument, .pfx/.p12 or .pem/.crt)
+    #[arg(value_name = "CERTIFICATE", conflicts_with_all = ["pfx", "cert"])]
+    certificate: Option<String>,
 
-    /// Password for the certificate (optional, if PFX is not encrypted)
-    #[arg(value_name = "PASSWORD")]
+    /// Password for PFX or second positional arg as key file for PEM
+    #[arg(value_name = "PASSWORD_OR_KEY")]
+    password_or_key: Option<String>,
+
+    // Named arguments
+    /// Path to PFX certificate file (.pfx or .p12)
+    #[arg(long, value_name = "PFX_FILE", conflicts_with_all = ["cert", "key"])]
+    pfx: Option<String>,
+
+    /// Path to PEM certificate file (.pem or .crt)
+    #[arg(long, value_name = "CERT_FILE", requires = "key", conflicts_with = "pfx")]
+    cert: Option<String>,
+
+    /// Path to private key file (.pem or .key)
+    #[arg(long, value_name = "KEY_FILE", requires = "cert")]
+    key: Option<String>,
+
+    /// Password for PFX file
+    #[arg(long, value_name = "PASSWORD")]
     password: Option<String>,
 }
 
@@ -32,11 +49,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Parse CLI arguments
     let args = Args::parse();
 
-    // Load certificate and private key using the certificate module
-    let (certs, private_key) = certificate::load_certificate(
-        &args.certificate,
-        args.password.as_deref(),
-    )?;
+    // Load certificate and private key based on provided arguments
+    let (certs, private_key) = if let Some(pfx_path) = &args.pfx {
+        // Named mode: --pfx [--password] (no extension validation)
+        certificate::load_certificate(pfx_path, args.password.as_deref(), false)?
+    } else if let Some(cert_path) = &args.cert {
+        // Named mode: --cert --key (no extension validation)
+        let key_path = args.key.as_ref().unwrap(); // Safe due to clap's requires constraint
+        certificate::load_pem_certificate(cert_path, key_path)?
+    } else if let Some(cert_path) = &args.certificate {
+        // Positional mode: detect format by extension
+        let cert_type = certificate::detect_cert_type(cert_path)
+            .map_err(|e| format!("Failed to detect certificate type: {}", e))?;
+
+        match cert_type {
+            certificate::CertType::Pfx => {
+                // PFX format: certificate [password] (with extension validation)
+                certificate::load_certificate(cert_path, args.password_or_key.as_deref(), true)?
+            }
+            certificate::CertType::Pem => {
+                // PEM format: certificate keyfile (no extension validation needed)
+                let key_path = args.password_or_key.as_ref()
+                    .ok_or("PEM certificate requires a key file as the second argument")?;
+                certificate::load_pem_certificate(cert_path, key_path)?
+            }
+        }
+    } else {
+        return Err("No certificate specified. Use either positional arguments or named flags (--pfx or --cert/--key)".into());
+    };
 
     // Configure TLS
     let config = ServerConfig::builder()
